@@ -6,6 +6,8 @@
 #  aasm_state                                :string           default("brouillon")
 #  allow_expert_review                       :boolean          default(TRUE), not null
 #  api_entreprise_token                      :string
+#  api_particulier_scopes                    :text             default([]), is an Array
+#  api_particulier_sources                   :jsonb
 #  ask_birthday                              :boolean          default(FALSE), not null
 #  auto_archive_on                           :date
 #  cadre_juridique                           :string
@@ -33,6 +35,7 @@
 #  path                                      :string           not null
 #  published_at                              :datetime
 #  routing_criteria_name                     :text             default("Votre ville")
+#  routing_enabled                           :boolean
 #  test_started_at                           :datetime
 #  unpublished_at                            :datetime
 #  web_hook_url                              :string
@@ -276,7 +279,7 @@ class Procedure < ApplicationRecord
     }, if: -> { new_record? || created_at > Date.new(2020, 11, 13) }
 
   validates :api_entreprise_token, jwt_token: true, allow_blank: true
-  validates :api_particulier_token, format: { with: /\A[A-Za-z0-9\-_=.]{15,}\z/, message: "n'est pas un jeton valide" }, allow_blank: true
+  validates :api_particulier_token, format: { with: /\A[A-Za-z0-9\-_=.]{15,}\z/ }, allow_blank: true
 
   before_save :update_juridique_required
   after_initialize :ensure_path_exists
@@ -456,6 +459,7 @@ class Procedure < ApplicationRecord
       procedure.administrateurs = [admin]
       procedure.api_entreprise_token = nil
       procedure.encrypted_api_particulier_token = nil
+      procedure.api_particulier_scopes = []
     else
       procedure.administrateurs = administrateurs
     end
@@ -634,7 +638,7 @@ class Procedure < ApplicationRecord
   end
 
   def routee?
-    groupe_instructeurs.size > 1
+    routing_enabled? || groupe_instructeurs.size > 1
   end
 
   def defaut_groupe_instructeur_for_new_dossier
